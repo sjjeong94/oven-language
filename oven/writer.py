@@ -95,9 +95,12 @@ class Writer:
         return res
 
     def ret(self, values: List[Value]) -> None:
-        names = ", ".join(v.name for v in values)
-        types = ", ".join(repr(v) for v in values)
-        self.append(f"return {names} : {types}")
+        line = f"return"
+        if len(values) > 0:
+            names = ", ".join(v.name for v in values)
+            types = ", ".join(repr(v) for v in values)
+            line += f" {names} : {types}"
+        self.append(line)
 
     def get_op(self, op: str) -> Scalar:
         if op in {"get_bdim_x", "get_bdim_y", "get_bdim_z"}:
@@ -241,6 +244,8 @@ class Visitor(ast.NodeVisitor):
         self.writer.append(f"func.func @{node.name}({', '.join(arguments)}) {{")
         self.writer.indent += 1
         self.generic_visit(node)
+        if self.writer.lines[-1].split()[0] != "return":
+            self.writer.ret([])
         self.writer.indent -= 1
         self.writer.append("}")
 

@@ -9,8 +9,7 @@ import ast
 import sys
 import os
 from typing import Optional, Dict, Any, List
-from .ast_visitor import PythonToMLIRASTVisitor
-from .mlir_generator import MLIRGenerator
+from .writer import Visitor
 
 
 class PythonToMLIRCompiler:
@@ -108,7 +107,7 @@ class PythonToMLIRCompiler:
             Generated MLIR code as string
         """
         # Create AST visitor
-        visitor = PythonToMLIRASTVisitor()
+        visitor = Visitor()
 
         if self.debug:
             print("Starting AST traversal...")
@@ -117,7 +116,7 @@ class PythonToMLIRCompiler:
         visitor.visit(python_ast)
 
         # Get generated MLIR code
-        mlir_code = visitor.get_mlir_code()
+        mlir_code = repr(visitor)
 
         if self.debug:
             print("MLIR generation completed")

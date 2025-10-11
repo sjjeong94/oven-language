@@ -113,6 +113,11 @@ def get_tid_y():
     raise NotImplementedError("This function is compiled to MLIR operations")
 
 
+def get_tid_z():
+    """Get the current thread ID in the Z dimension."""
+    raise NotImplementedError("This function is compiled to MLIR operations")
+
+
 def get_bid_x():
     """Get the current block ID in the X dimension."""
     raise NotImplementedError("This function is compiled to MLIR operations")
@@ -123,8 +128,23 @@ def get_bid_y():
     raise NotImplementedError("This function is compiled to MLIR operations")
 
 
+def get_bid_z():
+    """Get the current block ID in the Z dimension."""
+    raise NotImplementedError("This function is compiled to MLIR operations")
+
+
 def get_bdim_x():
     """Get the block dimension in the X dimension."""
+    raise NotImplementedError("This function is compiled to MLIR operations")
+
+
+def get_bdim_y():
+    """Get the block dimension in the Y dimension."""
+    raise NotImplementedError("This function is compiled to MLIR operations")
+
+
+def get_bdim_z():
+    """Get the block dimension in the Z dimension."""
     raise NotImplementedError("This function is compiled to MLIR operations")
 
 
