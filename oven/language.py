@@ -60,7 +60,7 @@ def store(value, ptr, offset):
     raise NotImplementedError("This function is compiled to MLIR operations")
 
 
-def vload(ptr, offset, size):
+def vload(ptr, offset):
     """
     Vectorized load operation from GPU memory.
 
@@ -70,7 +70,6 @@ def vload(ptr, offset, size):
     Args:
         ptr: Memory pointer (!llvm.ptr)
         offset: Offset index (i32)
-        size: Vector size (attribute, e.g., 4 for vector<4xf32>)
 
     Returns:
         Vector of loaded values (vector<SIZExf32>)
@@ -82,7 +81,7 @@ def vload(ptr, offset, size):
     raise NotImplementedError("This function is compiled to MLIR operations")
 
 
-def vstore(vector, ptr, offset, size):
+def vstore(vector, ptr, offset):
     """
     Vectorized store operation to GPU memory.
 
@@ -93,7 +92,6 @@ def vstore(vector, ptr, offset, size):
         vector: Vector value to store (vector<SIZExf32>)
         ptr: Memory pointer (!llvm.ptr)
         offset: Offset index (i32)
-        size: Vector size (attribute, e.g., 4 for vector<4xf32>)
 
     MLIR equivalent:
         oven.vstore %vector, %ptr, %offset, SIZE : (vector<SIZExf32>, !llvm.ptr, i32)
@@ -253,93 +251,4 @@ def floor(x):
 
 def rsqrt(x):
     """Compute the reciprocal square root (1/sqrt(x))."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-# NVIDIA Intrinsics (for compatibility with existing code)
-def nvvm_read_ptx_sreg_ntid_x():
-    """NVIDIA intrinsic: Read block dimension X."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-def nvvm_read_ptx_sreg_ctaid_x():
-    """NVIDIA intrinsic: Read block ID X."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-def nvvm_read_ptx_sreg_tid_x():
-    """NVIDIA intrinsic: Read thread ID X."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-# Aliases for the NVIDIA intrinsics (underscore versions)
-__nvvm_read_ptx_sreg_ntid_x = nvvm_read_ptx_sreg_ntid_x
-__nvvm_read_ptx_sreg_ctaid_x = nvvm_read_ptx_sreg_ctaid_x
-__nvvm_read_ptx_sreg_tid_x = nvvm_read_ptx_sreg_tid_x
-__load_from_ptr = load
-__store_to_ptr = store
-
-
-# Arithmetic Operations
-def muli(a, b):
-    """Multiply two integer values."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-def addi(a, b):
-    """Add two integer values."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-def mulf(a, b):
-    """Multiply two floating-point values."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-def addf(a, b):
-    """Add two floating-point values."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-# Input/Output Operations
-def load_input_x(index):
-    """Load value from input buffer x at specified index."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-def store_output_x(value, index):
-    """Store value to output buffer x at specified index."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-def load_input_y(index):
-    """Load value from input buffer y at specified index."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-def store_output_y(value, index):
-    """Store value to output buffer y at specified index."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-# Type Conversion
-def index_cast(value, from_type, to_type):
-    """Cast between index and integer types."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-# Constants
-def constant(value, data_type):
-    """Create a constant value."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-# Loop Operations
-def for_loop(start, end, step, body_func, init_args=None):
-    """Create a for loop with iter_args."""
-    raise NotImplementedError("This function is compiled to MLIR operations")
-
-
-def yield_value(*values):
-    """Yield values in a loop."""
     raise NotImplementedError("This function is compiled to MLIR operations")

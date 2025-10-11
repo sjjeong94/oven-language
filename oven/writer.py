@@ -91,7 +91,12 @@ class Writer:
             right = self.to_i32(right)
         assert left.dtype == right.dtype
         op = f"arith.{op}{left.dtype[0]}"
-        res = self.scalar(left.dtype)
+        if isinstance(left, Vector):
+            res = self.vector(left.dtype, left.shape)
+        elif isinstance(left, Scalar):
+            res = self.scalar(left.dtype)
+        else:
+            raise NotImplementedError(type(left))
         self.append(f"{res.name} = {op} {left.name}, {right.name} : {left}")
         return res
 
@@ -122,9 +127,21 @@ class Writer:
         self.append(f"{res.name} = oven.load {ptr.name}, {offset.name} : {info}")
         return res
 
-    def store(self, ptr: Pointer, offset: Scalar, value: Scalar) -> None:
+    def vload(self, ptr: Pointer, offset: Scalar) -> Vector:
+        res = self.vector("f32", [4])
+        info = f"{ptr}, {offset} -> {res}"
+        self.append(f"{res.name} = oven.vload {ptr.name}, {offset.name} : {info}")
+        return res
+
+    def store(self, value: Scalar, ptr: Pointer, offset: Scalar) -> None:
+        assert isinstance(value, Scalar)
         info = f"{value}, {ptr}, {offset}"
         self.append(f"oven.store {value.name}, {ptr.name}, {offset.name} : {info}")
+
+    def vstore(self, value: Vector, ptr: Pointer, offset: Scalar) -> None:
+        assert isinstance(value, Vector)
+        info = f"{value}, {ptr}, {offset}"
+        self.append(f"oven.vstore {value.name}, {ptr.name}, {offset.name} : {info}")
 
     def to_index(self, value: Scalar) -> Scalar:
         assert value.dtype == "i32"
@@ -308,21 +325,25 @@ class Visitor(ast.NodeVisitor):
         elif len(node.args) == 2:
             if node.func.attr == "load":
                 ptr = self.get_value(node.args[0])
-                index = self.get_value(node.args[1])
-                self.values[node] = self.writer.load(ptr, index)
+                offset = self.get_value(node.args[1])
+                self.values[node] = self.writer.load(ptr, offset)
+            elif node.func.attr == "vload":
+                ptr = self.get_value(node.args[0])
+                offset = self.get_value(node.args[1])
+                self.values[node] = self.writer.vload(ptr, offset)
             else:
                 raise NotImplementedError(node.func.attr)
         elif len(node.args) == 3:
             if node.func.attr == "store":
                 value = self.get_value(node.args[0])
                 ptr = self.get_value(node.args[1])
-                index = self.get_value(node.args[2])
-                self.writer.store(ptr, index, value)
-            elif node.func.attr == "vload":
-                ptr = self.get_value(node.args[0])
-                index = self.get_value(node.args[1])
-                size = self.get_value(node.args[2])
-                self.values[node] = self.writer.vload(ptr, index, size)
+                offset = self.get_value(node.args[2])
+                self.writer.store(value, ptr, offset)
+            elif node.func.attr == "vstore":
+                value = self.get_value(node.args[0])
+                ptr = self.get_value(node.args[1])
+                offset = self.get_value(node.args[2])
+                self.writer.vstore(value, ptr, offset)
             else:
                 raise NotImplementedError(node.func.attr)
 

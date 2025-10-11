@@ -279,6 +279,83 @@ class TestFileCompilation:
             assert "scf.for" in mlir_code
 
 
+@pytest.mark.unit
+class TestVectorOperations:
+    """Test vector operations compilation."""
+
+    def test_vadd_compilation(self, compiler):
+        """Test vector addition compilation."""
+        source = """
+import oven.language as ol
+
+def vadd(a_ptr: ol.ptr, b_ptr: ol.ptr, c_ptr: ol.ptr):
+    bsize = ol.get_bdim_x()
+    bid = ol.get_bid_x()
+    tid = ol.get_tid_x()
+    idx = (bid * bsize + tid) * 4
+    x_value = ol.vload(a_ptr, idx)
+    y_value = ol.vload(b_ptr, idx)
+    z_value = x_value + y_value
+    ol.vstore(z_value, c_ptr, idx)
+"""
+        mlir_code = compiler.compile_source(source)
+
+        # Check for expected MLIR patterns
+        assert "func.func @vadd" in mlir_code
+        # Check for vector operations (flexible matching)
+        vector_ops_found = (
+            "oven.vload" in mlir_code
+            or "vector.load" in mlir_code
+            or "vload" in mlir_code
+        )
+        assert vector_ops_found, "Vector load operations not found"
+
+    def test_vmul_compilation(self, compiler):
+        """Test vector multiplication compilation."""
+        source = """
+import oven.language as ol
+
+def vmul(a_ptr: ol.ptr, b_ptr: ol.ptr, c_ptr: ol.ptr):
+    bsize = ol.get_bdim_x()
+    bid = ol.get_bid_x()
+    tid = ol.get_tid_x()
+    idx = (bid * bsize + tid) * 4
+    x_value = ol.vload(a_ptr, idx)
+    y_value = ol.vload(b_ptr, idx)
+    z_value = x_value * y_value
+    ol.vstore(z_value, c_ptr, idx)
+"""
+        mlir_code = compiler.compile_source(source)
+
+        # Check for expected MLIR patterns
+        assert "func.func @vmul" in mlir_code
+        # Check for arithmetic operations
+        arith_ops = ["arith.mulf", "arith.muli"]
+        arith_found = any(op in mlir_code for op in arith_ops)
+        assert arith_found, "Multiplication operations not found"
+
+    @pytest.mark.integration
+    def test_compile_vectorize_file(self, compiler):
+        """Test compiling the vectorize.py file."""
+        file_path = "/Users/jsj/projects/oven-language/vectorize.py"
+        if os.path.exists(file_path):
+            with open(file_path, "r") as f:
+                source_code = f.read()
+
+            mlir_code = compiler.compile_source(source_code)
+
+            # Basic sanity checks
+            assert mlir_code is not None
+            assert len(mlir_code) > 0
+
+            # Check that vector functions are present
+            expected_functions = ["vadd", "vmul", "vsub", "vdiv"]
+            for func_name in expected_functions:
+                assert (
+                    f"func.func @{func_name}" in mlir_code
+                ), f"Vector function {func_name} not found"
+
+
 @pytest.mark.integration
 class TestErrorHandling:
     """Test error handling in compilation."""
