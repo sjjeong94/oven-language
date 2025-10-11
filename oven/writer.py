@@ -84,6 +84,10 @@ class Writer:
         return res
 
     def binary(self, op: str, left: Value, right: Value) -> Value:
+        if left.dtype == "index":
+            left = self.to_i32(left)
+        if right.dtype == "index":
+            right = self.to_i32(right)
         assert left.dtype == right.dtype
         op = f"arith.{op}{left.dtype[0]}"
         res = self.scalar(left.dtype)
@@ -132,6 +136,7 @@ class Writer:
 
     def scf_for(
         self,
+        index: Scalar,
         start: Scalar,
         end: Scalar,
         step: Scalar,
@@ -143,7 +148,7 @@ class Writer:
         results = [self.scalar(arg.dtype) for arg, _ in iter_args]
 
         res_names = ", ".join([res.name for res in results])
-        op = f"scf.for {start.name} to {end.name} step {step.name}"
+        op = f"scf.for {index.name} = {start.name} to {end.name} step {step.name}"
         line = f"{res_names} = {op} iter_args({args}) -> ({info}) {{"
         self.append(line)
         return results
@@ -239,19 +244,39 @@ class Visitor(ast.NodeVisitor):
         self.writer.indent -= 1
         self.writer.append("}")
 
-    def visit_Call(self, node: ast.Call) -> None:
-        self.generic_visit(node)
-        assert isinstance(node.func, ast.Attribute), node.func
-        assert node.func.value.id == "ol"
-        if len(node.args) == 0:
-            self.values[node] = self.writer.get_op(node.func.attr)
-        elif node.func.attr == "range":
-            assert len(node.args) == 3
+    def visit_range(self, node: ast.Call) -> None:
+        if len(node.args) == 3:
             start = self.get_value(node.args[0])
             end = self.get_value(node.args[1])
             step = self.get_value(node.args[2])
-            self.values[node] = (start, end, step)
+        elif len(node.args) == 2:
+            start = self.get_value(node.args[0])
+            end = self.get_value(node.args[1])
+            step = self.writer.constant(1)
+        elif len(node.args) == 1:
+            start = self.writer.constant(0)
+            end = self.get_value(node.args[0])
+            step = self.writer.constant(1)
+        else:
+            raise NotImplementedError(len(node.args))
+        self.values[node] = (start, end, step)
 
+    def visit_Call(self, node: ast.Call) -> None:
+        self.generic_visit(node)
+        if isinstance(node.func, ast.Name):
+            if node.func.id == "range":
+                self.visit_range(node)
+                return
+            else:
+                raise NotImplementedError(node.func.id)
+
+        assert isinstance(node.func, ast.Attribute), node.func
+        assert node.func.value.id == "ol"
+
+        if len(node.args) == 0:
+            self.values[node] = self.writer.get_op(node.func.attr)
+        elif node.func.attr == "range":
+            self.visit_range(node)
         elif len((node.args)) == 1:
             arg = self.get_value(node.args[0])
             opname = {
@@ -288,6 +313,9 @@ class Visitor(ast.NodeVisitor):
                 raise NotImplementedError(node.func.attr)
 
     def visit_For(self, node: ast.For) -> None:
+        index = self.writer.scalar("index")
+        self.values[node.target.id] = index
+        self.visit(node.iter)
         start, end, step = self.get_value(node.iter)
         start = self.writer.to_index(start)
         end = self.writer.to_index(end)
@@ -298,6 +326,19 @@ class Visitor(ast.NodeVisitor):
             if isinstance(b, ast.AugAssign):
                 if b.target.id not in ids:
                     ids.append(b.target.id)
+            elif isinstance(b, ast.Assign) and isinstance(b.value, ast.BinOp):
+                if (
+                    isinstance(b.value.left, ast.Name)
+                    and b.value.left.id == b.targets[0].id
+                    and b.value.left.id not in ids
+                ):
+                    ids.append(b.value.left.id)
+                if (
+                    isinstance(b.value.right, ast.Name)
+                    and b.value.right.id == b.targets[0].id
+                    and b.value.right.id not in ids
+                ):
+                    ids.append(b.value.right.id)
 
         iter_args = []
         for i in ids:
@@ -306,9 +347,10 @@ class Visitor(ast.NodeVisitor):
             self.values[i] = new_arg
             iter_args.append((arg, new_arg))
 
-        results = self.writer.scf_for(start, end, step, iter_args)
+        results = self.writer.scf_for(index, start, end, step, iter_args)
         self.writer.indent += 1
-        self.generic_visit(node)
+        for b in node.body:
+            self.visit(b)
         r = [self.get_value(i) for i in ids]
         self.writer.scf_yield(r)
         for i, res in zip(ids, results):
