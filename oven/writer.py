@@ -123,24 +123,24 @@ class Writer:
 
     def load(self, ptr: Pointer, offset: Scalar) -> Scalar:
         res = self.scalar("f32")
-        info = f"{ptr}, {offset} -> {res}"
+        info = f"({ptr}, {offset}) -> {res}"
         self.append(f"{res.name} = oven.load {ptr.name}, {offset.name} : {info}")
         return res
 
     def vload(self, ptr: Pointer, offset: Scalar) -> Vector:
         res = self.vector("f32", [4])
-        info = f"{ptr}, {offset} -> {res}"
+        info = f"({ptr}, {offset}) -> {res}"
         self.append(f"{res.name} = oven.vload {ptr.name}, {offset.name} : {info}")
         return res
 
     def store(self, value: Scalar, ptr: Pointer, offset: Scalar) -> None:
         assert isinstance(value, Scalar)
-        info = f"{value}, {ptr}, {offset}"
+        info = f"({value}, {ptr}, {offset})"
         self.append(f"oven.store {value.name}, {ptr.name}, {offset.name} : {info}")
 
     def vstore(self, value: Vector, ptr: Pointer, offset: Scalar) -> None:
         assert isinstance(value, Vector)
-        info = f"{value}, {ptr}, {offset}"
+        info = f"({value}, {ptr}, {offset})"
         self.append(f"oven.vstore {value.name}, {ptr.name}, {offset.name} : {info}")
 
     def to_index(self, value: Scalar) -> Scalar:
@@ -317,7 +317,7 @@ class Visitor(ast.NodeVisitor):
                 "abs": "math.absf",
                 "ceil": "math.ceil",
                 "floor": "math.floor",
-                "rsqrt": "oven.rsqrt",
+                "rsqrt": "math.rsqrt",
             }.get(node.func.attr)
             if opname is None:
                 raise NotImplementedError(node.func.attr)

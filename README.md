@@ -45,6 +45,5 @@ oven kernel.py
 
 ## Links
 
-- [Documentation](docs/Documentation.md)
 - [GitHub](https://github.com/sjjeong94/oven-language)
 - [PyPI](https://pypi.org/project/oven-language/)
