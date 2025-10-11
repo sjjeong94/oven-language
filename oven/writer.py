@@ -1,5 +1,5 @@
 import ast
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union, Tuple
 
 
 def get_dtype(value: Any) -> str:
@@ -118,6 +118,41 @@ class Writer:
         info = f"{value}, {ptr}, {offset}"
         self.append(f"oven.store {value.name}, {ptr.name}, {offset.name} : {info}")
 
+    def to_index(self, value: Scalar) -> Scalar:
+        assert value.dtype == "i32"
+        res = self.scalar("index")
+        self.append(f"{res.name} = arith.index_cast {value.name} : {value} to {res}")
+        return res
+
+    def to_i32(self, value: Scalar) -> Scalar:
+        assert value.dtype == "index"
+        res = self.scalar("i32")
+        self.append(f"{res.name} = arith.index_cast {value.name} : {value} to {res}")
+        return res
+
+    def scf_for(
+        self,
+        start: Scalar,
+        end: Scalar,
+        step: Scalar,
+        iter_args: List[Tuple[Value, Value]],
+    ) -> List[Value]:
+        args = [f"{new_arg.name} = {arg.name}" for arg, new_arg in iter_args]
+        args = ", ".join(args)
+        info = ", ".join([repr(arg) for arg, _ in iter_args])
+        results = [self.scalar(arg.dtype) for arg, _ in iter_args]
+
+        res_names = ", ".join([res.name for res in results])
+        op = f"scf.for {start.name} to {end.name} step {step.name}"
+        line = f"{res_names} = {op} iter_args({args}) -> ({info}) {{"
+        self.append(line)
+        return results
+
+    def scf_yield(self, values: List[Value]) -> None:
+        names = ", ".join(v.name for v in values)
+        types = ", ".join(repr(v) for v in values)
+        self.append(f"scf.yield {names} : {types}")
+
 
 class Visitor(ast.NodeVisitor):
     def __init__(self) -> None:
@@ -128,8 +163,10 @@ class Visitor(ast.NodeVisitor):
     def __repr__(self):
         return repr(self.writer)
 
-    def get_value(self, node: ast.AST) -> Value:
-        if isinstance(node, ast.Name):
+    def get_value(self, node: Union[ast.AST, int]) -> Value:
+        if isinstance(node, int):
+            return self.values[node]
+        elif isinstance(node, ast.Name):
             return self.values[node.id]
         return self.values[node]
 
@@ -204,10 +241,17 @@ class Visitor(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> None:
         self.generic_visit(node)
-        assert isinstance(node.func, ast.Attribute)
+        assert isinstance(node.func, ast.Attribute), node.func
         assert node.func.value.id == "ol"
         if len(node.args) == 0:
             self.values[node] = self.writer.get_op(node.func.attr)
+        elif node.func.attr == "range":
+            assert len(node.args) == 3
+            start = self.get_value(node.args[0])
+            end = self.get_value(node.args[1])
+            step = self.get_value(node.args[2])
+            self.values[node] = (start, end, step)
+
         elif len((node.args)) == 1:
             arg = self.get_value(node.args[0])
             opname = {
@@ -242,3 +286,32 @@ class Visitor(ast.NodeVisitor):
                 self.values[node] = self.writer.vload(ptr, index, size)
             else:
                 raise NotImplementedError(node.func.attr)
+
+    def visit_For(self, node: ast.For) -> None:
+        start, end, step = self.get_value(node.iter)
+        start = self.writer.to_index(start)
+        end = self.writer.to_index(end)
+        step = self.writer.to_index(step)
+
+        ids = []
+        for b in node.body:
+            if isinstance(b, ast.AugAssign):
+                if b.target.id not in ids:
+                    ids.append(b.target.id)
+
+        iter_args = []
+        for i in ids:
+            arg = self.get_value(i)
+            new_arg = self.writer.scalar(arg.dtype)
+            self.values[i] = new_arg
+            iter_args.append((arg, new_arg))
+
+        results = self.writer.scf_for(start, end, step, iter_args)
+        self.writer.indent += 1
+        self.generic_visit(node)
+        r = [self.get_value(i) for i in ids]
+        self.writer.scf_yield(r)
+        for i, res in zip(ids, results):
+            self.values[i] = res
+        self.writer.indent -= 1
+        self.writer.append("}")
