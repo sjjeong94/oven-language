@@ -4,6 +4,7 @@ from typing import Any, List, Optional, Union, Tuple
 
 def get_dtype(value: Any) -> str:
     dtype = {
+        bool: "i1",
         int: "i32",
         float: "f32",
     }.get(type(value))
@@ -183,7 +184,15 @@ class Visitor(ast.NodeVisitor):
 
     def visit_Assign(self, node: ast.Assign) -> None:
         self.generic_visit(node)
-        self.values[node.targets[0].id] = self.values[node.value]
+        if isinstance(node.targets[0], ast.Tuple):
+            assert isinstance(node.value, ast.Tuple)
+            for target, value in zip(node.targets[0].elts, node.value.elts):
+                assert isinstance(target, ast.Name)
+                self.values[target.id] = self.values[value]
+        elif isinstance(node.targets[0], ast.Name):
+            self.values[node.targets[0].id] = self.values[node.value]
+        else:
+            raise NotImplementedError(type(node.targets[0]))
 
     def visit_Constant(self, node: ast.Constant) -> None:
         self.generic_visit(node)
