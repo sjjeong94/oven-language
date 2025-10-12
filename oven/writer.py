@@ -100,6 +100,23 @@ class Writer:
         self.append(f"{res.name} = {op} {left.name}, {right.name} : {left}")
         return res
 
+    def compare(self, op: str, left: Value, right: Value) -> Value:
+        if left.dtype == "index":
+            left = self.to_i32(left)
+        if right.dtype == "index":
+            right = self.to_i32(right)
+        assert left.dtype == right.dtype
+        assert type(left) == type(right) == Scalar
+        dtype = left.dtype[0]
+        if dtype == "f":
+            op = "o" + op
+        elif dtype == "i" and op in {"lt", "le", "gt", "ge"}:
+            op = "s" + op
+        op = f"arith.cmp{dtype} {op},"
+        res = self.scalar("i1")
+        self.append(f"{res.name} = {op} {left.name}, {right.name} : {left}")
+        return res
+
     def ret(self, values: List[Value]) -> None:
         line = f"return"
         if len(values) > 0:
@@ -222,6 +239,22 @@ class Visitor(ast.NodeVisitor):
     def visit_Constant(self, node: ast.Constant) -> None:
         self.generic_visit(node)
         self.values[node] = self.writer.constant(node.value)
+
+    def visit_Compare(self, node: ast.Compare) -> None:
+        assert len(node.ops) == 1
+        self.generic_visit(node)
+        left = self.get_value(node.left)
+        right = self.get_value(node.comparators[0])
+        opname = {
+            ast.Eq: "eq",
+            ast.NotEq: "ne",
+            ast.Lt: "lt",
+            ast.LtE: "le",
+            ast.Gt: "gt",
+            ast.GtE: "ge",
+        }[type(node.ops[0])]
+        result = self.writer.compare(opname, left, right)
+        self.values[node] = result
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
         self.generic_visit(node)
