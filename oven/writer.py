@@ -109,6 +109,14 @@ class Writer:
         self.append(line)
 
     def get_op(self, op: str) -> Scalar:
+        if op == "smem":
+            res = self.pointer(space=3)
+            self.append(f"{res.name} = oven.smem : {res}")
+            return res
+        elif op == "barrier":
+            self.append("nvvm.barrier0")
+            return
+
         if op in {"get_bdim_x", "get_bdim_y", "get_bdim_z"}:
             opname = "nvvm.read.ptx.sreg.ntid."
         elif op in {"get_bid_x", "get_bid_y", "get_bid_z"}:
