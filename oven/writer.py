@@ -288,6 +288,10 @@ class Visitor(ast.NodeVisitor):
             values = [self.get_value(node.value.id)]
         elif isinstance(node.value, ast.Tuple):
             values = [self.get_value(elt) for elt in node.value.elts]
+        elif isinstance(node.value, ast.Constant):
+            values = [self.get_value(node.value)]
+        elif node.value is None:
+            values = []
         else:
             raise NotImplementedError(type(node.value))
         self.writer.ret(values)
@@ -353,6 +357,7 @@ class Visitor(ast.NodeVisitor):
             arg = self.get_value(node.args[0])
             opname = {
                 "sigmoid": "oven.sigmoid",
+                "exp2": "math.exp2",
                 "exp": "math.exp",
                 "sqrt": "math.sqrt",
                 "abs": "math.absf",
@@ -432,4 +437,20 @@ class Visitor(ast.NodeVisitor):
         for i, res in zip(ids, results):
             self.values[i] = res
         self.writer.indent -= 1
+        self.writer.append("}")
+
+    def visit_If(self, node: ast.If) -> None:
+        self.visit(node.test)
+        cond = self.get_value(node.test)
+        self.writer.append(f"scf.if {cond.name} {{")
+        self.writer.indent += 1
+        for b in node.body:
+            self.visit(b)
+        self.writer.indent -= 1
+        if node.orelse:
+            self.writer.append("} else {")
+            self.writer.indent += 1
+            for b in node.orelse:
+                self.visit(b)
+            self.writer.indent -= 1
         self.writer.append("}")
