@@ -80,7 +80,12 @@ class Writer:
         return res
 
     def unary(self, op: str, operand: Value) -> Value:
-        res = self.scalar(operand.dtype)
+        if isinstance(operand, Vector):
+            res = self.vector(operand.dtype, operand.shape)
+        elif isinstance(operand, Scalar):
+            res = self.scalar(operand.dtype)
+        else:
+            raise NotImplementedError(type(operand))
         self.append(f"{res.name} = {op} {operand.name} : {operand}")
         return res
 
