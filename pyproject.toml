@@ -5,10 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "oven-language"
 dynamic = ["version"]
-description = "Python-to-MLIR compiler for GPU kernel development and mathematical computing"
+description = "A Python-to-MLIR compiler for GPU kernel development"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = {text = "MIT"}
 authors = [
     {name = "Sinjin Jeong", email = "sjjeong94@gmail.com"}
 ]
