@@ -19,16 +19,15 @@ pip install oven-language
 ```python
 import oven.language as ol
 
-def vector_add(a_ptr: ol.ptr, b_ptr: ol.ptr, out_ptr: ol.ptr):
+def vector_add(a_ptr: ol.ptr, b_ptr: ol.ptr, c_ptr: ol.ptr):
+    bsize = ol.get_bdim_x()
+    bid = ol.get_bid_x()
     tid = ol.get_tid_x()
-    idx = tid * 4
-    
-    # Load vectors
-    a = ol.vload(a_ptr, idx, 4)
-    b = ol.vload(b_ptr, idx, 4)
-    
-    # Add and store
-    ol.vstore(a + b, out_ptr, idx, 4)
+    idx = (bid * bsize + tid) * 4
+    x_value = ol.vload(a_ptr, idx)
+    y_value = ol.vload(b_ptr, idx)
+    z_value = x_value + y_value
+    ol.vstore(z_value, c_ptr, idx)
 ```
 
 Compile to MLIR:

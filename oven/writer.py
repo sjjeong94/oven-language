@@ -95,6 +95,8 @@ class Writer:
         if right.dtype == "index":
             right = self.to_i32(right)
         assert left.dtype == right.dtype
+        if op == "div" and left.dtype[0] == "i":
+            op = op + "s"
         op = f"arith.{op}{left.dtype[0]}"
         if isinstance(left, Vector):
             res = self.vector(left.dtype, left.shape)
@@ -152,23 +154,35 @@ class Writer:
         return res
 
     def load(self, ptr: Pointer, offset: Scalar) -> Scalar:
+        if offset.dtype == "index":
+            offset = self.to_i32(offset)
+        assert offset.dtype == "i32"
         res = self.scalar("f32")
         info = f"({ptr}, {offset}) -> {res}"
         self.append(f"{res.name} = oven.load {ptr.name}, {offset.name} : {info}")
         return res
 
     def vload(self, ptr: Pointer, offset: Scalar) -> Vector:
+        if offset.dtype == "index":
+            offset = self.to_i32(offset)
+        assert offset.dtype == "i32"
         res = self.vector("f32", [4])
         info = f"({ptr}, {offset}) -> {res}"
         self.append(f"{res.name} = oven.vload {ptr.name}, {offset.name} : {info}")
         return res
 
     def store(self, value: Scalar, ptr: Pointer, offset: Scalar) -> None:
+        if offset.dtype == "index":
+            offset = self.to_i32(offset)
+        assert offset.dtype == "i32"
         assert isinstance(value, Scalar)
         info = f"({value}, {ptr}, {offset})"
         self.append(f"oven.store {value.name}, {ptr.name}, {offset.name} : {info}")
 
     def vstore(self, value: Vector, ptr: Pointer, offset: Scalar) -> None:
+        if offset.dtype == "index":
+            offset = self.to_i32(offset)
+        assert offset.dtype == "i32"
         assert isinstance(value, Vector)
         info = f"({value}, {ptr}, {offset})"
         self.append(f"oven.vstore {value.name}, {ptr.name}, {offset.name} : {info}")
@@ -235,9 +249,9 @@ class Visitor(ast.NodeVisitor):
             assert isinstance(node.value, ast.Tuple)
             for target, value in zip(node.targets[0].elts, node.value.elts):
                 assert isinstance(target, ast.Name)
-                self.values[target.id] = self.values[value]
+                self.values[target.id] = self.get_value(value)
         elif isinstance(node.targets[0], ast.Name):
-            self.values[node.targets[0].id] = self.values[node.value]
+            self.values[node.targets[0].id] = self.get_value(node.value)
         else:
             raise NotImplementedError(type(node.targets[0]))
 
@@ -268,6 +282,7 @@ class Visitor(ast.NodeVisitor):
             ast.Sub: "sub",
             ast.Mult: "mul",
             ast.Div: "div",
+            ast.FloorDiv: "div",
         }[type(node.op)]
         left = self.get_value(node.left)
         right = self.get_value(node.right)
@@ -281,6 +296,7 @@ class Visitor(ast.NodeVisitor):
             ast.Sub: "sub",
             ast.Mult: "mul",
             ast.Div: "div",
+            ast.FloorDiv: "div",
         }[type(node.op)]
         left = self.get_value(node.target)
         right = self.get_value(node.value)

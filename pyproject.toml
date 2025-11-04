@@ -7,7 +7,8 @@ name = "oven-language"
 dynamic = ["version"]
 description = "Python-to-MLIR compiler for GPU kernel development and mathematical computing"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Sinjin Jeong", email = "sjjeong94@gmail.com"}
 ]
